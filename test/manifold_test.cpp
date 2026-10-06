@@ -1705,3 +1705,21 @@ TEST(Manifold, RemoveDegeneratesAtExplicitPrecision) {
       exact.RemoveDegenerates(std::numeric_limits<double>::infinity()).Status(),
       Manifold::Error::InvalidConstruction);
 }
+
+TEST(Manifold, PlaneCutsHaveIndependentProvenance) {
+  const auto source = Manifold::Cube().AsOriginal();
+  const auto first = source.TrimByPlane({1, 0, 0}, 0.25).GetMeshGL64();
+  const auto second = source.TrimByPlane({0, 1, 0}, 0.25).GetMeshGL64();
+  ASSERT_EQ(first.runOriginalID.size(), 2);
+  ASSERT_EQ(second.runOriginalID.size(), 2);
+  const auto sourceID = static_cast<uint32_t>(source.OriginalID());
+  uint32_t firstCut = 0;
+  uint32_t secondCut = 0;
+  for (auto id : first.runOriginalID)
+    if (id != sourceID) firstCut = id;
+  for (auto id : second.runOriginalID)
+    if (id != sourceID) secondCut = id;
+  EXPECT_NE(firstCut, 0);
+  EXPECT_NE(secondCut, 0);
+  EXPECT_NE(firstCut, secondCut);
+}

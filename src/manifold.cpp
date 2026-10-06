@@ -32,7 +32,8 @@ ExecutionParams manifoldParams;
 
 Manifold Halfspace(Box bBox, vec3 normal, double originOffset) {
   normal = la::normalize(normal);
-  Manifold cutter = Manifold::Cube(vec3(2.0), true).Translate({1.0, 0.0, 0.0});
+  Manifold cutter =
+      Manifold::Cube(vec3(2.0), true).AsOriginal().Translate({1.0, 0.0, 0.0});
   double size = la::length(bBox.Center() - normal * originOffset) +
                 0.5 * la::length(bBox.Size());
   cutter = cutter.Scale(vec3(size)).Translate({originOffset, 0.0, 0.0});
