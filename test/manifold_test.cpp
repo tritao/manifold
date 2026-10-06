@@ -1677,3 +1677,31 @@ TEST(Manifold, WithRunOriginalIDs) {
             Manifold::Error::InvalidConstruction);
   EXPECT_TRUE(Manifold().WithRunOriginalIDs({}).IsEmpty());
 }
+
+TEST(Manifold, RemoveDegeneratesAtExplicitPrecision) {
+  auto mesh = Manifold::Cube().Refine(2).GetMeshGL64();
+  constexpr double EdgeFraction = 1e-7;
+  constexpr double ImportTolerance = 1e-4;
+  const auto first = mesh.triVerts[0];
+  const auto second = mesh.triVerts[1];
+  for (size_t axis = 0; axis < 3; ++axis) {
+    const double base = mesh.vertProperties[first * mesh.numProp + axis];
+    auto& value = mesh.vertProperties[second * mesh.numProp + axis];
+    value = base + EdgeFraction * (value - base);
+  }
+  mesh.tolerance = 0;
+  const Manifold exact(mesh);
+  ASSERT_EQ(exact.Status(), Manifold::Error::NoError);
+  const Manifold cleaned = exact.RemoveDegenerates(ImportTolerance);
+  ASSERT_EQ(cleaned.Status(), Manifold::Error::NoError);
+  EXPECT_LT(cleaned.NumVert(), exact.NumVert());
+  EXPECT_LT(cleaned.NumTri(), exact.NumTri());
+  EXPECT_EQ(cleaned.Genus(), exact.Genus());
+  EXPECT_EQ(exact.GetMeshGL64().triVerts,
+            Manifold(mesh).GetMeshGL64().triVerts);
+  EXPECT_EQ(exact.RemoveDegenerates(-1).Status(),
+            Manifold::Error::InvalidConstruction);
+  EXPECT_EQ(
+      exact.RemoveDegenerates(std::numeric_limits<double>::infinity()).Status(),
+      Manifold::Error::InvalidConstruction);
+}

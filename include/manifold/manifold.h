@@ -219,6 +219,8 @@ class Manifold {
   Manifold WarpBatch(std::function<void(VecView<vec3>)>) const;
   Manifold Simplify(double tolerance = 0) const;
   Manifold RemoveDegenerates() const;
+  /// Remove degenerate geometry at an explicit absolute precision.
+  Manifold RemoveDegenerates(double tolerance) const;
   ///@}
 
   /** @name Boolean

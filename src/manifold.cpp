@@ -394,11 +394,16 @@ Manifold Manifold::Simplify(double tolerance) const {
  * Returns a copy of the manifold with all degenerate triangles removed, as well
  * as collapsing coplanar edges that are not important boundaries.
  */
-Manifold Manifold::RemoveDegenerates() const {
+Manifold Manifold::RemoveDegenerates() const { return RemoveDegenerates(0); }
+
+Manifold Manifold::RemoveDegenerates(double tolerance) const {
+  if (!std::isfinite(tolerance) || tolerance < 0)
+    return PropagateStatus(Error::InvalidConstruction);
   auto leafImpl = GetCsgLeafNode().GetImpl();
   if (leafImpl->status_ != Error::NoError)
     return PropagateStatus(leafImpl->status_);
   auto impl = std::make_shared<Impl>(*leafImpl);
+  impl->epsilon_ = std::max(impl->epsilon_, tolerance);
   impl->RemoveDegenerates();
   impl->SortGeometry();
   return Manifold(impl);
