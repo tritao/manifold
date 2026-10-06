@@ -197,6 +197,12 @@ class Manifold {
   ///@{
   int OriginalID() const;
   Manifold AsOriginal(int id = -1) const;
+  /// Assign one unique nonnegative original ID to each GetMeshGL run, in
+  /// exported run order (including empty runs). Geometry, face IDs and run
+  /// transforms are preserved; output runs may reorder by their new IDs.
+  /// This is not AsOriginal(). Invalid count,
+  /// duplicate IDs or IDs above INT32_MAX return InvalidConstruction.
+  Manifold WithRunOriginalIDs(const std::vector<uint32_t>& ids) const;
   static uint32_t ReserveIDs(uint32_t);
   ///@}
 

@@ -1650,3 +1650,30 @@ TEST(Manifold, DedupeEdgesNeverMovesACorner) {
   EXPECT_NEAR(m.Volume(), 0.00099963253073879, 1e-12);
 }
 #endif
+
+TEST(Manifold, WithRunOriginalIDs) {
+  const auto leaf = Manifold::Cube({1, 2, 3}).AsOriginal();
+  const auto prototype = Manifold::BatchBoolean(
+      {leaf, leaf.Translate({4, 0, 0}), leaf}, OpType::Add);
+  const auto before = prototype.GetMeshGL64();
+  ASSERT_EQ(before.runOriginalID.size(), 3);
+  const uint32_t first = Manifold::ReserveIDs(3);
+  const auto mapped =
+      prototype.WithRunOriginalIDs({first, first + 1, first + 2});
+  ASSERT_EQ(mapped.Status(), Manifold::Error::NoError);
+  const auto after = mapped.GetMeshGL64();
+  EXPECT_EQ(before.vertProperties, after.vertProperties);
+  EXPECT_EQ(before.triVerts, after.triVerts);
+  EXPECT_EQ(before.faceID, after.faceID);
+  EXPECT_EQ(before.runIndex, after.runIndex);
+  EXPECT_EQ(before.runTransform, after.runTransform);
+  EXPECT_EQ(before.runFlags, after.runFlags);
+  EXPECT_EQ(after.runOriginalID,
+            (std::vector<uint32_t>{first, first + 1, first + 2}));
+  EXPECT_EQ(before.runOriginalID, prototype.GetMeshGL64().runOriginalID);
+  EXPECT_EQ(leaf.WithRunOriginalIDs({}).Status(),
+            Manifold::Error::InvalidConstruction);
+  EXPECT_EQ(prototype.WithRunOriginalIDs({first, first, first + 1}).Status(),
+            Manifold::Error::InvalidConstruction);
+  EXPECT_TRUE(Manifold().WithRunOriginalIDs({}).IsEmpty());
+}

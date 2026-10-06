@@ -26,6 +26,7 @@ set(
   polygon_test.cpp
   properties_test.cpp
   manifold_test.cpp
+  run_original_ids_test.cpp
   context_test.cpp
   measurement_test.cpp
   boolean_test.cpp

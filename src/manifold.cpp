@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <limits>
+#include <numeric>
+#include <set>
 
 #include "atomic_compat.h"
 #include "boolean3.h"
@@ -455,6 +458,61 @@ Manifold Manifold::AsOriginal(int id) const {
   newImpl->InitializeOriginal(id);
   newImpl->SetFaceAndVertNormals();
   return Manifold(std::make_shared<CsgLeafNode>(newImpl));
+}
+
+Manifold Manifold::WithRunOriginalIDs(const std::vector<uint32_t>& ids) const {
+  auto oldImpl = GetCsgLeafNode().GetImpl();
+  if (oldImpl->status_ != Error::NoError)
+    return PropagateStatus(oldImpl->status_);
+  std::set<uint32_t> unique;
+  for (uint32_t id : ids) {
+    if (id > uint32_t(std::numeric_limits<int32_t>::max()) ||
+        !unique.insert(id).second)
+      return PropagateStatus(Error::InvalidConstruction);
+  }
+
+  // Match GetMeshGL's run traversal, including zero-face relations at the end.
+  const auto& relation = oldImpl->meshRelation_;
+  std::vector<int> triangles(oldImpl->NumTri());
+  std::iota(triangles.begin(), triangles.end(), 0);
+  if (relation.originalID < 0) {
+    std::stable_sort(triangles.begin(), triangles.end(), [&](int a, int b) {
+      const auto left = relation.triRef[a];
+      const auto right = relation.triRef[b];
+      return left.originalID == right.originalID
+                 ? left.meshID < right.meshID
+                 : left.originalID < right.originalID;
+    });
+  }
+  auto remaining = relation.meshIDtransform;
+  std::vector<int> runMeshIDs;
+  int previous = -1;
+  for (int triangle : triangles) {
+    const int meshID = relation.triRef[triangle].meshID;
+    if (meshID != previous) {
+      runMeshIDs.push_back(meshID);
+      remaining.erase(meshID);
+      previous = meshID;
+    }
+  }
+  for (const auto& pair : remaining) runMeshIDs.push_back(pair.first);
+  if (ids.size() != runMeshIDs.size())
+    return PropagateStatus(Error::InvalidConstruction);
+
+  auto result = std::make_shared<Impl>(*oldImpl);
+  result->meshRelation_.originalID = -1;
+  auto& mapped = result->meshRelation_;
+  for (size_t run = 0; run < ids.size(); ++run) {
+    auto found = mapped.meshIDtransform.find(runMeshIDs[run]);
+    if (found == mapped.meshIDtransform.end())
+      return PropagateStatus(Error::InvalidConstruction);
+    found->second.originalID = int(ids[run]);
+  }
+  for (int triangle = 0; triangle < result->NumTri(); ++triangle) {
+    auto& ref = mapped.triRef[triangle];
+    ref.originalID = mapped.meshIDtransform.at(ref.meshID).originalID;
+  }
+  return Manifold(std::make_shared<CsgLeafNode>(result));
 }
 
 /**
